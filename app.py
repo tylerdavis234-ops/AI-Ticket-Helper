@@ -1,102 +1,201 @@
 import streamlit as st
 from openai import OpenAI
+from streamlit_extras.let_it_rain import rain
+from time import sleep
 
-# Initialize OpenAI client with Streamlit secret
-client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+# ========================
+# PAGE CONFIG
+# ========================
+st.set_page_config(
+    page_title="AI TicketMate",
+    page_icon="🤖",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-# Page config
-st.set_page_config(page_title="AI Ticket Helper", page_icon="🎫")
-st.title("🎫 TeamDynamix Ticket Helper")
-st.write("Enter basic info below — your AI assistant will format it for your ticket.")
+# ========================
+# STYLING
+# ========================
+st.markdown("""
+    <style>
+    /* General Background */
+    .main {
+        background: linear-gradient(135deg, #0A0F24 0%, #141B3A 100%);
+        color: #E0E6F8;
+        font-family: 'Segoe UI', sans-serif;
+    }
 
-# Initialize session state
-if "ticket_generated" not in st.session_state:
-    st.session_state.ticket_generated = False
-    st.session_state.ticket_name = ""
-    st.session_state.details = ""
+    /* Sidebar */
+    [data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #141B3A 0%, #0A0F24 100%);
+        color: #FFFFFF;
+    }
 
-# Ticket form
-with st.form("ticket_form"):
-    name = st.text_input("Name:")
-    username = st.text_input("Username:")
-    idnumber = st.text_input("JCCC ID Number:")
-    roomnumber = st.text_input("Location:")
-    issue = st.text_area("Describe the issue:")
-    submitted = st.form_submit_button("Generate Ticket Summary")
+    /* Headers */
+    h1, h2, h3 {
+        color: #00FFC6;
+        text-shadow: 0 0 15px #00FFC6;
+    }
 
-# Generate ticket
-if submitted:
-    with st.spinner("Generating AI response..."):
-        prompt = f"""
-        You are TyBot, a professional IT helpdesk assistant.
-        Using the information below, do the following:
+    /* Buttons */
+    div.stButton > button {
+        background-color: #00FFC6;
+        color: black;
+        border: none;
+        border-radius: 10px;
+        padding: 0.6em 1.2em;
+        font-weight: 600;
+        transition: all 0.3s ease-in-out;
+    }
+    div.stButton > button:hover {
+        background-color: #14A76C;
+        color: white;
+        transform: scale(1.05);
+        box-shadow: 0 0 15px #00FFC6;
+    }
 
-        1. Generate a short, descriptive 'Ticket Name' (no personal names).
-        2. Write a short paragraph summarizing the issue based on the description.
+    /* Inputs */
+    div[data-baseweb="input"] > div {
+        background-color: #1A1F38;
+        color: white;
+        border-radius: 6px;
+    }
 
-        Format like this:
-        Ticket Name: <Generated Ticket Name>
-        Details: <Summary paragraph>
+    textarea {
+        background-color: #1A1F38 !important;
+        color: #FFFFFF !important;
+        border-radius: 6px !important;
+    }
 
-        Name: {name}
-        Username: {username}
-        JCCC ID Number: {idnumber}
-        Location: {roomnumber}
-        Issue: {issue}
-        """
+    /* Footer */
+    footer {visibility: hidden;}
 
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": "You are TyBot, a friendly and professional IT assistant helping to write TeamDynamix tickets."},
-                {"role": "user", "content": prompt}
-            ]
-        )
+    /* Neon title effect */
+    .glow {
+        color: #00FFC6;
+        text-shadow: 0 0 15px #00FFC6, 0 0 30px #00FFC6;
+        font-weight: 700;
+        text-align: center;
+        margin-bottom: 1rem;
+    }
+    </style>
+""", unsafe_allow_html=True)
 
-        ticket_text = response.choices[0].message.content
+# ========================
+# HEADER
+# ========================
+st.markdown("<h1 class='glow'>🤖 Welcome to AI TicketMate</h1>", unsafe_allow_html=True)
+st.markdown("### Streamlined Tech Support — Powered by AI ⚡")
 
-        # Parse output
-        lines = ticket_text.splitlines()
-        ticket_name, details = "", ""
-        for line in lines:
-            if line.lower().startswith("ticket name:"):
-                ticket_name = line.replace("Ticket Name:", "").strip()
-            elif line.lower().startswith("details:"):
-                details = line.replace("Details:", "").strip()
+# Cool animation effect
+rain(
+    emoji="💾",
+    font_size=30,
+    falling_speed=5,
+    animation_length="infinite"
+)
 
-        # Store in session
-        st.session_state.ticket_generated = True
-        st.session_state.ticket_name = ticket_name
-        st.session_state.details = details
+# ========================
+# SIDEBAR
+# ========================
+st.sidebar.header("⚙️ Settings")
+dark_mode = st.sidebar.toggle("Enable Dark Mode", value=True)
+show_debug = st.sidebar.toggle("Show Debug Logs", value=False)
+st.sidebar.markdown("---")
+st.sidebar.write("**Developed by Tyler Davis 🧠**")
+st.sidebar.write("Version 1.2.0 | AI-Powered Support Tool")
 
-# Function to display fields with "highlight on focus"
-def highlight_field(label, value, height=None, key=None):
-    """Displays a text input or textarea that highlights all text when focused."""
-    key = key or label.lower().replace(" ", "_")
-    if height:
-        st.text_area(label, value, height=height, key=key)
-    else:
-        st.text_input(label, value, key=key)
+# ========================
+# OPENAI CLIENT
+# ========================
+try:
+    client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+except Exception as e:
+    st.error("⚠️ OpenAI API key not found in secrets.toml!")
+    st.stop()
 
-    # JS to highlight text when field is focused
-    st.markdown(f"""
-        <script>
-        const input = window.parent.document.querySelector('[data-testid="{key}"] input, [data-testid="{key}"] textarea');
-        if(input) {{
-            input.addEventListener('focus', () => {{
-                input.select();
-            }});
-        }}
-        </script>
-    """, unsafe_allow_html=True)
+# ========================
+# MAIN APP CONTENT
+# ========================
+col1, col2 = st.columns([2, 1])
 
-# Display generated ticket
-if st.session_state.ticket_generated:
-    st.subheader("✅ Ticket Generated")
+with col1:
+    st.markdown("#### 💬 Describe the issue you're facing:")
+    user_input = st.text_area(
+        " ",
+        placeholder="Example: Outlook not syncing or Teams mic not working..."
+    )
 
-    highlight_field("Ticket Name", st.session_state.ticket_name)
-    highlight_field("Name", name)
-    highlight_field("Username", username)
-    highlight_field("JCCC ID", idnumber)
-    highlight_field("Location", roomnumber)
-    highlight_field("Details", st.session_state.details, height=150)
+    if st.button("🚀 Diagnose Issue"):
+        if user_input.strip():
+            with st.spinner("Analyzing your issue with AI..."):
+                try:
+                    sleep(1)
+
+                    # Build prompt
+                    prompt = f"""
+                    You are TicketMate, a professional IT Helpdesk assistant.
+                    Based on the issue description below, generate:
+                    1. A short, clear 'Ticket Name'
+                    2. A detailed summary paragraph of the issue in a professional tone.
+
+                    Format:
+                    Ticket Name: <name>
+                    Details: <summary paragraph>
+
+                    Issue: {user_input}
+                    """
+
+                    # OpenAI call
+                    response = client.chat.completions.create(
+                        model="gpt-4o-mini",
+                        messages=[
+                            {
+                                "role": "system",
+                                "content": "You are TicketMate, an expert IT Helpdesk AI that generates professional ticket summaries."
+                            },
+                            {"role": "user", "content": prompt}
+                        ]
+                    )
+
+                    ticket_text = response.choices[0].message.content
+
+                    # Parse output
+                    lines = ticket_text.splitlines()
+                    ticket_name, details = "", ""
+                    for line in lines:
+                        if line.lower().startswith("ticket name:"):
+                            ticket_name = line.replace("Ticket Name:", "").strip()
+                        elif line.lower().startswith("details:"):
+                            details = line.replace("Details:", "").strip()
+
+                    st.success("✅ Ticket Generated Successfully!")
+
+                    # Display in styled boxes
+                    st.markdown(f"""
+                        <div style="background-color:#141B3A; padding:1em; border-radius:10px; margin-top:1em;">
+                        <h4 style="color:#00FFC6;">🎟️ Ticket Name:</h4>
+                        <p style="font-size:18px; color:white;">{ticket_name}</p>
+                        <h4 style="color:#00FFC6;">📋 Details:</h4>
+                        <p style="font-size:16px; color:white;">{details}</p>
+                        </div>
+                    """, unsafe_allow_html=True)
+
+                except Exception as e:
+                    st.error("❌ Error communicating with OpenAI API.")
+                    if show_debug:
+                        st.exception(e)
+        else:
+            st.warning("⚠️ Please describe an issue before submitting.")
+
+with col2:
+    st.markdown("#### 📂 Quick Actions")
+    st.button("📘 Open Knowledge Base")
+    st.button("✉️ Generate Email Template")
+    st.button("🖥️ System Status Check")
+
+# ========================
+# FOOTER
+# ========================
+st.markdown("---")
+st.caption("Built with ❤️ by Tyler Davis | AI TicketMate 2025")
