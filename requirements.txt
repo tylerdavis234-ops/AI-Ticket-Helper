@@ -1,7 +1,2 @@
 streamlit
 openai
-
-streamlit
-openai
-f5f61ad (Add files via upload)
-pyperclip
