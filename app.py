@@ -24,7 +24,7 @@ with st.form("ticket_form"):
     issue = st.text_area("Describe the issue:")
     submitted = st.form_submit_button("Generate Ticket Summary")
 
-# Generate ticket using AI
+# Generate ticket
 if submitted:
     with st.spinner("Generating AI response..."):
         prompt = f"""
@@ -69,26 +69,26 @@ if submitted:
         st.session_state.ticket_name = ticket_name
         st.session_state.details = details
 
-# Function to display fields that auto-highlight text on click
-def highlight_field(label, value, height=None):
-    """Displays a text input or text area that highlights all text on click."""
-    key = label.lower().replace(" ", "_")
+# Function to display fields with "highlight on focus"
+def highlight_field(label, value, height=None, key=None):
+    """Displays a text input or textarea that highlights all text when focused."""
+    key = key or label.lower().replace(" ", "_")
     if height:
         st.text_area(label, value, height=height, key=key)
     else:
         st.text_input(label, value, key=key)
 
-    # JavaScript to highlight text on focus
+    # JS to highlight text when field is focused
     st.markdown(f"""
         <script>
         const input = window.parent.document.querySelector('[data-testid="{key}"] input, [data-testid="{key}"] textarea');
-        if (input) {{
+        if(input) {{
             input.addEventListener('focus', () => {{
                 input.select();
             }});
         }}
         </script>
-        """, unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
 
 # Display generated ticket
 if st.session_state.ticket_generated:
