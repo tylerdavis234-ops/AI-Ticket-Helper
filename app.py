@@ -1,20 +1,21 @@
 import streamlit as st
 from openai import OpenAI
-import pyperclip
 
 # Initialize OpenAI client with Streamlit secret
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
+# Page config
 st.set_page_config(page_title="AI Ticket Helper", page_icon="🎫")
 st.title("🎫 TeamDynamix Ticket Helper")
 st.write("Enter basic info below — your AI assistant will format it for your ticket.")
 
-# Initialize session state to store AI results
+# Initialize session state
 if "ticket_generated" not in st.session_state:
     st.session_state.ticket_generated = False
     st.session_state.ticket_name = ""
     st.session_state.details = ""
 
+# Ticket form
 with st.form("ticket_form"):
     name = st.text_input("Name:")
     username = st.text_input("Username:")
@@ -23,16 +24,17 @@ with st.form("ticket_form"):
     issue = st.text_area("Describe the issue:")
     submitted = st.form_submit_button("Generate Ticket Summary")
 
+# Generate ticket using AI
 if submitted:
     with st.spinner("Generating AI response..."):
         prompt = f"""
         You are TyBot, a professional IT helpdesk assistant.
         Using the information below, do the following:
 
-        1. Generate a short, descriptive 'Ticket Name' for this issue (do NOT include the user's name).
-        2. Generate a single paragraph summarizing the issue using only the information from the 'Describe the issue' field.
+        1. Generate a short, descriptive 'Ticket Name' (no personal names).
+        2. Write a short paragraph summarizing the issue based on the description.
 
-        Format your response exactly like this:
+        Format like this:
         Ticket Name: <Generated Ticket Name>
         Details: <Summary paragraph>
 
@@ -42,7 +44,7 @@ if submitted:
         Location: {roomnumber}
         Issue: {issue}
         """
-        
+
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
@@ -53,61 +55,48 @@ if submitted:
 
         ticket_text = response.choices[0].message.content
 
-        # Parse Ticket Name and Details
+        # Parse output
         lines = ticket_text.splitlines()
-        ticket_name = ""
-        details = ""
+        ticket_name, details = "", ""
         for line in lines:
             if line.lower().startswith("ticket name:"):
                 ticket_name = line.replace("Ticket Name:", "").strip()
             elif line.lower().startswith("details:"):
                 details = line.replace("Details:", "").strip()
 
-        # Save to session state so page doesn't reset
+        # Store in session
         st.session_state.ticket_generated = True
         st.session_state.ticket_name = ticket_name
         st.session_state.details = details
 
-# Only show formatted ticket if generated
+# Function to display fields that auto-highlight text on click
+def highlight_field(label, value, height=None):
+    """Displays a text input or text area that highlights all text on click."""
+    key = label.lower().replace(" ", "_")
+    if height:
+        st.text_area(label, value, height=height, key=key)
+    else:
+        st.text_input(label, value, key=key)
+
+    # JavaScript to highlight text on focus
+    st.markdown(f"""
+        <script>
+        const input = window.parent.document.querySelector('[data-testid="{key}"] input, [data-testid="{key}"] textarea');
+        if (input) {{
+            input.addEventListener('focus', () => {{
+                input.select();
+            }});
+        }}
+        </script>
+        """, unsafe_allow_html=True)
+
+# Display generated ticket
 if st.session_state.ticket_generated:
-    # 1. Ticket Name
-    col1, col2 = st.columns([4,1])
-    col1.text_input("Ticket Name:", st.session_state.ticket_name, key="ticket_name")
-    if col2.button("Copy Ticket Name"):
-        pyperclip.copy(st.session_state.ticket_name)
-        st.success("Ticket Name copied!")
+    st.subheader("✅ Ticket Generated")
 
-    # 2. Name
-    col1, col2 = st.columns([4,1])
-    col1.text_input("Name:", name, key="name")
-    if col2.button("Copy Name"):
-        pyperclip.copy(name)
-        st.success("Name copied!")
-
-    # 3. Username
-    col1, col2 = st.columns([4,1])
-    col1.text_input("Username:", username, key="username")
-    if col2.button("Copy Username"):
-        pyperclip.copy(username)
-        st.success("Username copied!")
-
-    # 4. JCCC ID
-    col1, col2 = st.columns([4,1])
-    col1.text_input("JCCC ID:", idnumber, key="idnumber")
-    if col2.button("Copy JCCC ID"):
-        pyperclip.copy(idnumber)
-        st.success("JCCC ID copied!")
-
-    # 5. Location
-    col1, col2 = st.columns([4,1])
-    col1.text_input("Location:", roomnumber, key="location")
-    if col2.button("Copy Location"):
-        pyperclip.copy(roomnumber)
-        st.success("Location copied!")
-
-    # 6. Details
-    col1, col2 = st.columns([4,1])
-    col1.text_area("Details:", st.session_state.details, height=150, key="details")
-    if col2.button("Copy Details"):
-        pyperclip.copy(st.session_state.details)
-        st.success("Details copied!")
+    highlight_field("Ticket Name", st.session_state.ticket_name)
+    highlight_field("Name", name)
+    highlight_field("Username", username)
+    highlight_field("JCCC ID", idnumber)
+    highlight_field("Location", roomnumber)
+    highlight_field("Details", st.session_state.details, height=150)
